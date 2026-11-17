@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescueLens XR – Emergency Detection & Evacuation System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0A111E;
+      --surface: #132032;
+      --surface-light: #1E314B;
+      --border: #223652;
+      --primary: #0077B6;
+      --cyan: #00B4D8;
+      --danger: #E53935;
+      --warning: #FFB300;
+      --safe: #43A047;
+      --text-main: #FFFFFF;
+      --text-sub: #90A4AE;
+      --text-muted: #607D8B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+    
+    /* Top Header */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      background: var(--surface-light);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .brand-title { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+    .brand-subtitle { font-size: 11px; color: var(--text-sub); }
+    .status-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(67, 160, 71, 0.15); border: 1px solid var(--safe);
+      color: var(--safe); padding: 6px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 700;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--safe); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+    /* Nav Tabs */
+    .nav-tabs {
+      display: flex; background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent; border: none; color: var(--text-sub);
+      padding: 14px 20px; font-size: 13px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 8px; border-bottom: 3px solid transparent;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+    .tab-badge { background: var(--danger); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 4px; display: none; }
+
+    /* Main Container */
+    main { flex: 1; padding: 24px; max-width: 1240px; margin: 0 auto; width: 100%; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; margin-bottom: 20px;
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+
+    /* Status Banner */
+    .banner {
+      padding: 18px 24px; border-radius: 14px; border: 1.5px solid var(--safe);
+      background: rgba(67, 160, 71, 0.12); display: flex; align-items: center; gap: 16px;
+      margin-bottom: 20px; transition: all 0.3s;
+    }
+    .banner.critical {
+      border-color: var(--danger); background: rgba(229, 57, 53, 0.18);
+      animation: alertBlink 1.5s infinite;
+    }
+    @keyframes alertBlink { 0%, 100% { box-shadow: 0 0 15px rgba(229, 57, 53, 0.3); } 50% { box-shadow: 0 0 5px rgba(229, 57, 53, 0.1); } }
+    .banner-icon { font-size: 32px; }
+    .banner-title { font-size: 15px; font-weight: 800; letter-spacing: 0.5px; }
+    .banner-sub { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+
+    /* Metric Card */
+    .metric-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+    }
+    .metric-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted); font-weight: 700; }
+    .metric-value { font-size: 26px; font-weight: 800; margin: 8px 0 6px; }
+    .metric-badge { display: inline-block; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; }
+
+    /* 2D Map Canvas */
+    .map-container {
+      background: #0d1827; border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px; position: relative; overflow: hidden;
+    }
+    svg.floorplan { width: 100%; height: 380px; display: block; }
+    .node-rect { rx: 10; ry: 10; stroke-width: 2; transition: all 0.3s; cursor: pointer; }
+    .node-text { font-size: 12px; font-weight: 700; fill: #fff; text-anchor: middle; }
+    .node-subtext { font-size: 9px; font-weight: 800; text-anchor: middle; }
+    .corridor-line { stroke: #203248; stroke-width: 14; stroke-linecap: round; }
+    .path-active-line { stroke: var(--safe); stroke-width: 8; stroke-linecap: round; }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 18px; border-radius: 8px; border: none; font-size: 12px;
+      font-weight: 800; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-primary { background: var(--cyan); color: var(--bg); }
+    .btn-primary:hover { background: #33c5e3; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #d32f2f; }
+    .btn-warning { background: var(--warning); color: #111; }
+    .btn-safe { background: var(--safe); color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-sub); }
+    .btn-outline:hover { color: #fff; border-color: var(--cyan); }
+
+    /* Scenario List */
+    .scenario-card {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface-light); margin-bottom: 10px; transition: border 0.2s;
+    }
+    .scenario-card:hover { border-color: var(--cyan); }
+    .scenario-info h4 { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+    .scenario-info p { font-size: 11px; color: var(--text-sub); }
+
+    /* Controls row */
+    .controls-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+    select {
+      background: var(--surface-light); color: var(--text-main); border: 1px solid var(--border);
+      padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; outline: none;
+    }
+    
+    /* Turn by turn directive */
+    .directive-card {
+      background: var(--surface-light); border-left: 4px solid var(--safe);
+      padding: 14px 18px; border-radius: 8px; margin-top: 14px;
+    }
+
+    /* Room Table */
+    .room-table th { padding: 10px 12px; font-size: 11px; letter-spacing: 0.5px; }
+    .room-table td { padding: 12px; font-size: 12px; }
+    .room-table tr:hover { background: rgba(255,255,255,0.02); }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🛡</div>
+      <div>
+        <div class="brand-title">RescueLens XR</div>
+        <div class="brand-subtitle">Smart Emergency Detection & Evacuation Guidance</div>
+      </div>
+    </div>
+    <div class="status-badge" id="backendBadge">
+      <div class="status-dot" id="backendDot"></div>
+      <span id="backendStatusText">CHECKING CONNECTION...</span>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard')">🏠 Home Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('rooms')">🏢 Room-Wise Telemetry</button>
+    <button class="tab-btn" onclick="switchTab('charts')">📈 Live Sensor Charts</button>
+    <button class="tab-btn" onclick="switchTab('map')">🗺 2D Evacuation Map</button>
+    <button class="tab-btn" onclick="switchTab('alerts')">🚨 Emergency Alerts <span class="tab-badge" id="alertCountBadge">0</span></button>
+    <button class="tab-btn" onclick="switchTab('admin')">⚙ Safety Commander (Drills)</button>
+  </nav>
+
+  <!-- Main Container -->
+  <main>
+
+    <!-- TAB 1: HOME DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content active">
+      <!-- Status Banner -->
+      <div class="banner" id="heroBanner">
+        <div class="banner-icon" id="heroIcon">🛡</div>
+        <div>
+          <div class="banner-title" id="heroTitle">BUILDING STATUS: ALL ZONES SECURE</div>
+          <div class="banner-sub" id="heroSubtitle">Continuous sensor monitoring active across 8 building sectors.</div>
+        </div>
+      </div>
+
+      <!-- 1. Room Summary Count Cards (Total, Safe, Warning, Critical) -->
+      <div class="grid-4">
+        <div class="metric-card" style="border-left: 4px solid var(--cyan);">
+          <div class="metric-header"><span>TOTAL MONITORED ROOMS</span><span>🏢</span></div>
+          <div class="metric-value" id="valTotalRooms" style="color: var(--cyan)">8</div>
+          <div class="metric-badge" style="background: rgba(0,180,216,0.15); color: var(--cyan)">8 SECTORS CONFIGURED</div>
+        </div>
+        <div class="metric-card" style="border-left: 4px solid var(--safe);">
+          <div class="metric-header"><span>SAFE ROOMS</span><span>✅</span></div>
+          <div class="metric-value" id="valSafeRooms" style="color: var(--safe)">8</div>
+          <div class="metric-badge" style="background: rgba(67,160,71,0.15); color: var(--safe)">CLEAR OF HAZARDS</div>
+        </div>
+        <div class="metric-card" style="border-left: 4px solid var(--warning);">
+          <div class="metric-header"><span>WARNING ROOMS</span><span>⚠</span></div>
+          <div class="metric-value" id="valWarningRooms" style="color: var(--warning)">0</div>
+          <div class="metric-badge" id="badgeWarningRooms" style="background: rgba(255,179,0,0.15); color: var(--warning)">0 CAUTION ZONES</div>
+        </div>
+        <div class="metric-card" style="border-left: 4px solid var(--danger);">
+          <div class="metric-header"><span>CRITICAL / FIRE ROOMS</span><span>🚨</span></div>
+          <div class="metric-value" id="valCriticalRooms" style="color: var(--danger)">0</div>
+          <div class="metric-badge" id="badgeCriticalRooms" style="background: rgba(229,57,53,0.15); color: var(--danger)">0 EVACUATION ORDERS</div>
+        </div>
+      </div>
+
+      <!-- 2. Active Sensor Telemetry Cards (Smoke, Temp, Humidity, Flame) -->
+      <div class="grid-4">
+        <div class="metric-card">
+          <div class="metric-header"><span>MQ-2 SMOKE LEVEL</span><span>☁</span></div>
+          <div class="metric-value" id="valSmoke" style="color: var(--cyan)">60.0 PPM</div>
+          <div class="metric-badge" id="badgeSmoke" style="background: rgba(67,160,71,0.2); color: var(--safe)">NORMAL</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span>TEMPERATURE</span><span>🌡</span></div>
+          <div class="metric-value" id="valTemp" style="color: #FFA726">24.0 °C</div>
+          <div class="metric-badge" id="badgeTemp" style="background: rgba(67,160,71,0.2); color: var(--safe)">OPTIMAL</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span>HUMIDITY</span><span>💧</span></div>
+          <div class="metric-value" id="valHumidity" style="color: #42A5F5">50.0 %</div>
+          <div class="metric-badge" style="background: rgba(67,160,71,0.2); color: var(--safe)">NORMAL</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span>OPTICAL FLAME</span><span>🔥</span></div>
+          <div class="metric-value" id="valFlame" style="color: var(--safe)">CLEAR</div>
+          <div class="metric-badge" id="badgeFlame" style="background: rgba(67,160,71,0.2); color: var(--safe)">NO FLAME</div>
+        </div>
+      </div>
+
+      <!-- Quick Evacuation Action Card -->
+      <div class="card" style="display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--cyan)">
+        <div>
+          <h3 style="font-size: 15px; margin-bottom: 4px;">Dynamic Dijkstra Evacuation Pathfinder</h3>
+          <p style="font-size: 12px; color: var(--text-sub);">Calculates instant escape paths avoiding fire-compromised hallways.</p>
+        </div>
+        <button class="btn btn-primary" onclick="switchTab('map')">VIEW 2D MAP ➔</button>
+      </div>
+    </section>
+
+    <!-- TAB 2: ROOM-WISE SENSOR TELEMETRY -->
+    <section id="tab-rooms" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 800;">Room-Wise Environmental Telemetry & Hazard Matrix</h3>
+            <p style="font-size: 11px; color: var(--text-sub);">Live sensor status for all 8 building zones and emergency egress portals</p>
+          </div>
+          <span style="font-size: 11px; color: var(--cyan); background: rgba(0,180,216,0.1); padding: 4px 10px; border-radius: 6px; font-weight: 700;">REAL-TIME FEED</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="room-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); text-align: left;">
+                <th>SECTOR / ROOM NAME</th>
+                <th>SAFETY STATUS</th>
+                <th>OPTICAL FLAME</th>
+                <th>TEMPERATURE</th>
+                <th>SMOKE LEVEL</th>
+                <th>EVACUATION ACCESS</th>
+              </tr>
+            </thead>
+            <tbody id="roomTableBody">
+              <!-- Dynamically populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: LIVE CHARTS -->
+    <section id="tab-charts" class="tab-content">
+      <div class="controls-row">
+        <div>
+          <h2 style="font-size: 16px;">Real-Time Sensor Telemetry Trends</h2>
+          <p style="font-size: 11px; color: var(--text-sub);">Data polled live from the intelligence engine every 1.5 seconds</p>
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--text-sub); margin-right: 8px;">Active Zone:</label>
+          <select id="chartZoneSelect" onchange="changeZone(this.value)">
+            <option value="ROOM_1">Room 1 (IoT Lab - West)</option>
+            <option value="ROOM_2">Room 2 (Auditorium - Central)</option>
+            <option value="ROOM_3">Room 3 (Admin Office - East)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h4 style="font-size: 13px; color: var(--cyan); margin-bottom: 12px;">MQ-2 Smoke & Combustible Gas (PPM)</h4>
+          <canvas id="smokeChart" height="180"></canvas>
+        </div>
+        <div class="card">
+          <h4 style="font-size: 13px; color: #FFA726; margin-bottom: 12px;">Ambient Temperature (°C)</h4>
+          <canvas id="tempChart" height="180"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: 2D EVACUATION MAP -->
+    <section id="tab-map" class="tab-content">
+      <div class="controls-row">
+        <div>
+          <h2 style="font-size: 16px;">Interactive 2D Building Evacuation Map</h2>
+          <p style="font-size: 11px; color: var(--text-sub);">Dynamic Dijkstra path: Green = Safe Route | Red = Hazard Zone | Grey = Normal</p>
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--text-sub); margin-right: 8px;">My Current Location:</label>
+          <select id="mapOriginSelect" onchange="changeOrigin(this.value)">
+            <option value="ROOM_1">Room 1 (IoT Lab)</option>
+            <option value="ROOM_2" selected>Room 2 (Auditorium)</option>
+            <option value="ROOM_3">Room 3 (Admin Office)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="map-container">
+        <svg class="floorplan" viewBox="0 0 820 380">
+          <!-- Corridors / Pathways -->
+          <line x1="160" y1="85" x2="160" y2="220" class="corridor-line" />
+          <line x1="410" y1="85" x2="410" y2="220" class="corridor-line" />
+          <line x1="660" y1="85" x2="660" y2="220" class="corridor-line" />
+          
+          <line x1="160" y1="220" x2="410" y2="220" class="corridor-line" />
+          <line x1="410" y1="220" x2="660" y2="220" class="corridor-line" />
+          
+          <line x1="160" y1="220" x2="100" y2="320" class="corridor-line" />
+          <line x1="660" y1="220" x2="710" y2="320" class="corridor-line" />
+
+          <!-- Dynamic Evacuation Path Overlay -->
+          <g id="pathLinesGroup"></g>
+
+          <!-- Nodes: Rooms -->
+          <!-- Room 1 -->
+          <g id="node_ROOM_1" onclick="changeOrigin('ROOM_1')">
+            <rect x="80" y="40" width="160" height="90" class="node-rect" fill="#132032" stroke="#223652" />
+            <text x="160" y="80" class="node-text">Room 1 (IoT Lab)</text>
+            <text x="160" y="105" class="node-subtext" fill="#90A4AE" id="badge_ROOM_1">NORMAL</text>
+          </g>
+
+          <!-- Room 2 -->
+          <g id="node_ROOM_2" onclick="changeOrigin('ROOM_2')">
+            <rect x="330" y="40" width="160" height="90" class="node-rect" fill="#132032" stroke="#223652" />
+            <text x="410" y="80" class="node-text">Room 2 (Auditorium)</text>
+            <text x="410" y="105" class="node-subtext" fill="#90A4AE" id="badge_ROOM_2">NORMAL</text>
+          </g>
+
+          <!-- Room 3 -->
+          <g id="node_ROOM_3" onclick="changeOrigin('ROOM_3')">
+            <rect x="580" y="40" width="160" height="90" class="node-rect" fill="#132032" stroke="#223652" />
+            <text x="660" y="80" class="node-text">Room 3 (Admin Office)</text>
+            <text x="660" y="105" class="node-subtext" fill="#90A4AE" id="badge_ROOM_3">NORMAL</text>
+          </g>
+
+          <!-- Corridors -->
+          <!-- Corridor West -->
+          <g id="node_CORRIDOR_WEST">
+            <rect x="80" y="190" width="160" height="60" class="node-rect" fill="#132032" stroke="#223652" />
+            <text x="160" y="225" class="node-text">Corridor West</text>
+            <text x="160" y="240" class="node-subtext" fill="#90A4AE" id="badge_CORRIDOR_WEST">NORMAL</text>
+          </g>
+
+          <!-- Corridor Central -->
+          <g id="node_CORRIDOR_CENTRAL">
+            <rect x="330" y="190" width="160" height="60" class="node-rect" fill="#132032" stroke="#223652" />
+            <text x="410" y="225" class="node-text">Corridor Central</text>
+            <text x="410" y="240" class="node-subtext" fill="#90A4AE" id="badge_CORRIDOR_CENTRAL">NORMAL</text>
+          </g>
+
+          <!-- Corridor East -->
+          <g id="node_CORRIDOR_EAST">
+            <rect x="580" y="190" width="160" height="60" class="node-rect" fill="#132032" stroke="#223652" />
+            <text x="660" y="225" class="node-text">Corridor East</text>
+            <text x="660" y="240" class="node-subtext" fill="#90A4AE" id="badge_CORRIDOR_EAST">NORMAL</text>
+          </g>
+
+          <!-- Emergency Exit -->
+          <g id="node_EMERGENCY_EXIT">
+            <rect x="10" y="290" width="180" height="65" class="node-rect" fill="rgba(0,180,216,0.15)" stroke="#00B4D8" />
+            <text x="100" y="325" class="node-text" fill="#00B4D8">🚨 Emergency Exit</text>
+            <text x="100" y="342" class="node-subtext" fill="#00B4D8" id="badge_EMERGENCY_EXIT">SAFE PORTAL</text>
+          </g>
+
+          <!-- Main Exit -->
+          <g id="node_MAIN_EXIT">
+            <rect x="620" y="290" width="180" height="65" class="node-rect" fill="rgba(0,180,216,0.15)" stroke="#00B4D8" />
+            <text x="710" y="325" class="node-text" fill="#00B4D8">🚪 Main Exit</text>
+            <text x="710" y="342" class="node-subtext" fill="#00B4D8" id="badge_MAIN_EXIT">PRIMARY EXIT</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Turn by Turn Directives -->
+      <div class="directive-card" id="routeDirectives">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <h4 style="color: var(--safe); font-size: 14px;" id="routeTitle">Target Exit: MAIN_EXIT</h4>
+          <span style="font-size: 13px; font-weight: 800; color: var(--cyan);" id="routeDistance">20.0 m</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-main);" id="routeSteps">From Room 2 ➔ Corridor Central ➔ Corridor East ➔ Main Exit</p>
+      </div>
+    </section>
+
+    <!-- TAB 5: EMERGENCY ALERTS -->
+    <section id="tab-alerts" class="tab-content">
+      <h2 style="font-size: 16px; margin-bottom: 14px;">Active Emergency Incidents & Audit Log</h2>
+      <div id="activeAlertsContainer"></div>
+      
+      <h3 style="font-size: 14px; margin: 24px 0 12px; color: var(--text-sub);">Incident History Log</h3>
+      <div class="card" id="historyLogCard">
+        <p style="font-size: 12px; color: var(--text-muted);">No past incident logs recorded.</p>
+      </div>
+    </section>
+
+    <!-- TAB 6: ADMIN & SCENARIO DRILLS -->
+    <section id="tab-admin" class="tab-content">
+      <div class="controls-row">
+        <div>
+          <h2 style="font-size: 16px;">Safety Commander Drill Control Panel</h2>
+          <p style="font-size: 11px; color: var(--text-sub);">Simulate live emergencies to demonstrate dynamic pathfinding without physical sensors</p>
+        </div>
+        <button class="btn btn-primary" onclick="resetDrill()">🔄 1-CLICK RESET SYSTEM</button>
+      </div>
+
+      <div class="scenario-card">
+        <div class="scenario-info">
+          <h4 style="color: var(--safe)">Scenario 0: Normal Safe Baseline</h4>
+          <p>Restores all 8 zones to normal safe thresholds (Temp ~23.5°C, Smoke ~60 PPM, Flame=False).</p>
+        </div>
+        <button class="btn btn-safe" onclick="triggerScenario(0)">RUN SCENARIO 0</button>
+      </div>
+
+      <div class="scenario-card">
+        <div class="scenario-info">
+          <h4 style="color: var(--danger)">Scenario 1: Fire & Heavy Smoke in Room 1</h4>
+          <p>Room 1 hits 58°C, 620 PPM + Flame. Room 1 turns RED and blocked. Dijkstra reroutes evacuees.</p>
+        </div>
+        <button class="btn btn-danger" onclick="triggerScenario(1)">RUN SCENARIO 1</button>
+      </div>
+
+      <div class="scenario-card">
+        <div class="scenario-info">
+          <h4 style="color: var(--warning)">Scenario 2: Corridor East Fire (Main Exit Blocked)</h4>
+          <p>Engulfs East Corridor. Main exit becomes impassable. Algorithm forces rerouting to Emergency Exit.</p>
+        </div>
+        <button class="btn btn-warning" onclick="triggerScenario(2)">RUN SCENARIO 2</button>
+      </div>
+
+      <div class="scenario-card">
+        <div class="scenario-info">
+          <h4 style="color: #FF7043">Scenario 3: Thermal Anomaly in Room 3</h4>
+          <p>Admin office heats up to 48.2°C without open flame. Triggers caution alert state.</p>
+        </div>
+        <button class="btn btn-outline" style="border-color: #FF7043; color: #FF7043;" onclick="triggerScenario(3)">RUN SCENARIO 3</button>
+      </div>
+
+      <div class="scenario-card">
+        <div class="scenario-info">
+          <h4 style="color: #AB47BC">Scenario 4: Catastrophic Blockade (Trapped Demo)</h4>
+          <p>Both East & West corridors blocked. Evaluates the TRAPPED_NO_SAFE_ROUTE fail-safe protection.</p>
+        </div>
+        <button class="btn btn-outline" style="border-color: #AB47BC; color: #AB47BC;" onclick="triggerScenario(4)">RUN SCENARIO 4</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Determine API endpoint base
+    const API_BASE = window.location.origin.includes(':8000') 
+      ? window.location.origin + '/api/v1' 
+      : 'http://127.0.0.1:8000/api/v1';
+
+    let currentOrigin = 'ROOM_2';
+    let activeZone = 'ROOM_1';
+    
+    // Node Coordinates on SVG Canvas
+    const nodeCoords = {
+      'ROOM_1': { x: 160, y: 85 },
+      'ROOM_2': { x: 410, y: 85 },
+      'ROOM_3': { x: 660, y: 85 },
+      'CORRIDOR_WEST': { x: 160, y: 220 },
+      'CORRIDOR_CENTRAL': { x: 410, y: 220 },
+      'CORRIDOR_EAST': { x: 660, y: 220 },
+      'EMERGENCY_EXIT': { x: 100, y: 320 },
+      'MAIN_EXIT': { x: 710, y: 320 }
+    };
+
+    // Chart.js instances
+    let smokeChart, tempChart;
+    const smokeHistory = [55, 58, 60, 56, 59, 62, 60];
+    const tempHistory = [23.5, 23.6, 23.8, 23.5, 24.0, 23.9, 24.1];
+    const labels = ['-12s', '-10s', '-8s', '-6s', '-4s', '-2s', 'Now'];
+
+    function initCharts() {
+      const chartOptions = {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#607D8B' } },
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#607D8B' } }
+        }
+      };
+
+      const ctxSmoke = document.getElementById('smokeChart').getContext('2d');
+      smokeChart = new Chart(ctxSmoke, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: smokeHistory,
+            borderColor: '#00B4D8',
+            backgroundColor: 'rgba(0,180,216,0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: chartOptions
+      });
+
+      const ctxTemp = document.getElementById('tempChart').getContext('2d');
+      tempChart = new Chart(ctxTemp, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: tempHistory,
+            borderColor: '#FFA726',
+            backgroundColor: 'rgba(255,167,38,0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: chartOptions
+      });
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabName));
+      if (targetBtn) targetBtn.classList.add('active');
+      const targetContent = document.getElementById('tab-' + tabName);
+      if (targetContent) targetContent.classList.add('active');
+    }
+
+    function changeOrigin(val) {
+      currentOrigin = val;
+      document.getElementById('mapOriginSelect').value = val;
+      fetchData();
+    }
+
+    function changeZone(val) {
+      activeZone = val;
+      fetchData();
+    }
+
+    async function triggerScenario(id) {
+      try {
+        await fetch(`${API_BASE}/simulation/scenario`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenario_id: id })
+        });
+        fetchData();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function resetDrill() {
+      try {
+        await fetch(`${API_BASE}/alerts/reset`, { method: 'POST' });
+        fetchData();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function fetchData() {
+      try {
+        // 1. Building Status
+        const resStatus = await fetch(`${API_BASE}/building/status`);
+        if (!resStatus.ok) throw new Error("Backend offline");
+        const status = await resStatus.json();
+
+        document.getElementById('backendStatusText').textContent = status.esp32_connected ? "ESP32 LINKED" : "BACKEND LINKED (LIVE)";
+        document.getElementById('backendBadge').style.borderColor = "var(--safe)";
+        document.getElementById('backendDot').style.background = "var(--safe)";
+
+        // Summary counts
+        document.getElementById('valTotalRooms').textContent = status.total_rooms || 8;
+        document.getElementById('valSafeRooms').textContent = status.safe_rooms || 0;
+        document.getElementById('valWarningRooms').textContent = status.warning_rooms || 0;
+        document.getElementById('valCriticalRooms').textContent = status.critical_rooms || 0;
+
+        const isCrit = status.overall_status === 'CRITICAL';
+        const isWarn = status.overall_status === 'WARNING';
+        const hero = document.getElementById('heroBanner');
+
+        if (isCrit) {
+          hero.className = "banner critical";
+          document.getElementById('heroIcon').textContent = "🚨";
+          document.getElementById('heroTitle').textContent = "EMERGENCY: EVACUATION ORDER IN EFFECT";
+          document.getElementById('heroSubtitle').textContent = `${status.critical_rooms} Hazard zone(s) active! Follow dynamic green route on the map.`;
+        } else if (isWarn) {
+          hero.className = "banner";
+          hero.style.borderColor = "var(--warning)";
+          hero.style.background = "rgba(255, 179, 0, 0.15)";
+          document.getElementById('heroIcon').textContent = "⚠";
+          document.getElementById('heroTitle').textContent = "CAUTION: ELEVATED READINGS DETECTED";
+          document.getElementById('heroSubtitle').textContent = "Abnormal sensor telemetry observed. Prepare for potential evacuation.";
+        } else {
+          hero.className = "banner";
+          hero.style.borderColor = "var(--safe)";
+          hero.style.background = "rgba(67, 160, 71, 0.12)";
+          document.getElementById('heroIcon').textContent = "🛡";
+          document.getElementById('heroTitle').textContent = "BUILDING STATUS: ALL ZONES SECURE";
+          document.getElementById('heroSubtitle').textContent = "Continuous sensor monitoring active across 8 building sectors.";
+        }
+
+        // 2. Room Telemetry
+        const targetRoom = status.rooms[activeZone] || status.rooms['ROOM_1'];
+        if (targetRoom) {
+          document.getElementById('valSmoke').textContent = targetRoom.smoke_ppm.toFixed(1) + " PPM";
+          document.getElementById('valTemp').textContent = targetRoom.temperature.toFixed(1) + " °C";
+          document.getElementById('valHumidity').textContent = targetRoom.humidity.toFixed(1) + " %";
+          document.getElementById('valFlame').textContent = targetRoom.flame_detected ? "DETECTED!" : "CLEAR";
+          document.getElementById('valFlame').style.color = targetRoom.flame_detected ? "var(--danger)" : "var(--safe)";
+
+          // Update charts
+          if (smokeChart && tempChart) {
+            smokeHistory.push(targetRoom.smoke_ppm);
+            if (smokeHistory.length > 7) smokeHistory.shift();
+            smokeChart.update();
+
+            tempHistory.push(targetRoom.temperature);
+            if (tempHistory.length > 7) tempHistory.shift();
+            tempChart.update();
+          }
+        }
+
+        // Populate Room Table
+        const tbody = document.getElementById('roomTableBody');
+        if (tbody && status.rooms) {
+          tbody.innerHTML = Object.values(status.rooms).map(r => {
+            const isCritical = r.hazard_level === 'CRITICAL';
+            const isWarning = r.hazard_level === 'WARNING';
+            const badgeColor = isCritical ? 'var(--danger)' : (isWarning ? 'var(--warning)' : 'var(--safe)');
+            const badgeBg = isCritical ? 'rgba(229,57,53,0.15)' : (isWarning ? 'rgba(255,179,0,0.15)' : 'rgba(67,160,71,0.15)');
+            const passColor = r.is_passable ? 'var(--safe)' : 'var(--danger)';
+            const passBg = r.is_passable ? 'rgba(67,160,71,0.15)' : 'rgba(229,57,53,0.15)';
+            const passText = r.is_passable ? '✔ PASSABLE' : '✖ BLOCKED';
+            const flameText = r.flame_detected ? '🔥 DETECTED' : 'CLEAR';
+            const flameColor = r.flame_detected ? 'var(--danger)' : 'var(--safe)';
+
+            return `
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <td style="padding: 12px; font-weight: 700; color: #fff;">
+                  ${r.room_name}
+                  <div style="font-size: 10px; color: var(--text-muted); font-weight: 400;">Sector ID: ${r.room_id}</div>
+                </td>
+                <td style="padding: 12px;">
+                  <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 10px;">
+                    ${r.hazard_level}
+                  </span>
+                </td>
+                <td style="padding: 12px; color: ${flameColor}; font-weight: 700;">${flameText}</td>
+                <td style="padding: 12px; color: ${r.temperature > 45 ? 'var(--danger)' : '#FFA726'}; font-weight: 700;">${r.temperature.toFixed(1)} °C</td>
+                <td style="padding: 12px; color: ${r.smoke_ppm > 300 ? 'var(--danger)' : 'var(--cyan)'}; font-weight: 700;">${r.smoke_ppm.toFixed(1)} PPM</td>
+                <td style="padding: 12px;">
+                  <span style="background: ${passBg}; color: ${passColor}; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 10px;">
+                    ${passText}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // 3. Active Alerts
+        const resAlerts = await fetch(`${API_BASE}/alerts/active`);
+        const alerts = await resAlerts.json();
+        const alertBadge = document.getElementById('alertCountBadge');
+        if (alerts.length > 0) {
+          alertBadge.style.display = 'inline-block';
+          alertBadge.textContent = alerts.length;
+        } else {
+          alertBadge.style.display = 'none';
+        }
+
+        const alertsContainer = document.getElementById('activeAlertsContainer');
+        if (alerts.length === 0) {
+          alertsContainer.innerHTML = `
+            <div class="card" style="border-color: var(--safe); background: rgba(67, 160, 71, 0.1); text-align: center; padding: 30px;">
+              <div style="font-size: 38px;">✅</div>
+              <h3 style="color: var(--safe); margin: 8px 0 4px;">ALL CLEAR: NO ACTIVE HAZARDS</h3>
+              <p style="font-size: 12px; color: var(--text-sub);">All environmental conditions are within standard safe limits.</p>
+            </div>
+          `;
+        } else {
+          alertsContainer.innerHTML = alerts.map(a => `
+            <div class="card" style="border-color: var(--danger); background: rgba(229, 57, 53, 0.15); margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--danger); font-size: 14px;">🚨 ${a.hazard_level}: ${a.hazard_type} in ${a.room_id}</h3>
+                <span style="font-size: 11px; color: #fff; background: var(--danger); padding: 2px 8px; border-radius: 4px;">ACTIVE</span>
+              </div>
+              <p style="font-size: 12px; color: #fff; margin: 8px 0;">${a.message}</p>
+              <p style="font-size: 12px; font-weight: 700; color: var(--warning);">➔ ACTION: ${a.recommended_action}</p>
+            </div>
+          `).join('');
+        }
+
+        // 4. Evacuation Route & 2D Map
+        const resRoute = await fetch(`${API_BASE}/evacuation/route?origin=${currentOrigin}`);
+        const route = await resRoute.json();
+        updateMap(status.rooms, route);
+
+      } catch (err) {
+        document.getElementById('backendStatusText').textContent = "OFFLINE (RETRYING...)";
+        document.getElementById('backendBadge').style.borderColor = "var(--danger)";
+        document.getElementById('backendDot').style.background = "var(--danger)";
+      }
+    }
+
+    function updateMap(rooms, route) {
+      const blockedNodes = route.hazard_nodes_blocked || [];
+      const activePath = route.path || [];
+
+      // Update room nodes
+      Object.keys(rooms).forEach(rId => {
+        const nodeG = document.getElementById('node_' + rId);
+        const badge = document.getElementById('badge_' + rId);
+        if (!nodeG) return;
+
+        const rect = nodeG.querySelector('rect');
+        const isBlocked = blockedNodes.includes(rId);
+        const inPath = activePath.includes(rId);
+        const isOrigin = (rId === currentOrigin);
+
+        if (isBlocked) {
+          rect.setAttribute('fill', 'rgba(229, 57, 53, 0.35)');
+          rect.setAttribute('stroke', '#E53935');
+          rect.setAttribute('stroke-width', '3');
+          if (badge) { badge.textContent = "BLOCKED"; badge.setAttribute('fill', '#E53935'); }
+        } else if (inPath) {
+          rect.setAttribute('fill', 'rgba(67, 160, 71, 0.35)');
+          rect.setAttribute('stroke', '#43A047');
+          rect.setAttribute('stroke-width', isOrigin ? '3' : '2');
+          if (badge) { badge.textContent = isOrigin ? "★ YOU ARE HERE" : "SAFE ROUTE"; badge.setAttribute('fill', '#43A047'); }
+        } else {
+          rect.setAttribute('fill', '#132032');
+          rect.setAttribute('stroke', '#223652');
+          rect.setAttribute('stroke-width', '2');
+          if (badge) { badge.textContent = "NORMAL"; badge.setAttribute('fill', '#90A4AE'); }
+        }
+      });
+
+      // Draw green path lines
+      const pathGroup = document.getElementById('pathLinesGroup');
+      pathGroup.innerHTML = '';
+      if (activePath.length > 1) {
+        for (let i = 0; i < activePath.length - 1; i++) {
+          const p1 = nodeCoords[activePath[i]];
+          const p2 = nodeCoords[activePath[i + 1]];
+          if (p1 && p2) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', p1.x);
+            line.setAttribute('y1', p1.y);
+            line.setAttribute('x2', p2.x);
+            line.setAttribute('y2', p2.y);
+            line.setAttribute('class', 'path-active-line');
+            pathGroup.appendChild(line);
+          }
+        }
+      }
+
+      // Update Turn by Turn card
+      const dirCard = document.getElementById('routeDirectives');
+      if (route.status === 'TRAPPED_NO_SAFE_ROUTE') {
+        dirCard.style.borderLeftColor = 'var(--danger)';
+        document.getElementById('routeTitle').textContent = "NO SAFE ROUTE (TRAPPED)";
+        document.getElementById('routeTitle').style.color = "var(--danger)";
+        document.getElementById('routeDistance').textContent = "BLOCKED";
+        document.getElementById('routeSteps').textContent = route.warning_message;
+      } else {
+        dirCard.style.borderLeftColor = 'var(--safe)';
+        document.getElementById('routeTitle').textContent = `Target Exit: ${route.destination}`;
+        document.getElementById('routeTitle').style.color = "var(--safe)";
+        document.getElementById('routeDistance').textContent = route.path_distance.toFixed(1) + " m";
+        document.getElementById('routeSteps').textContent = route.path.join(" ➔ ");
+      }
+    }
+
+    window.onload = () => {
+      initCharts();
+      fetchData();
+      setInterval(fetchData, 1500);
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+{
+  "building_status": {
+    "overall_status": "NORMAL",
+    "total_rooms": 8,
+    "safe_rooms": 8,
+    "warning_rooms": 0,
+    "critical_rooms": 0,
+    "active_alerts_count": 0,
+    "esp32_connected": true,
+    "last_heartbeat": 1731670800,
+    "updated_at": "2026-11-15T12:00:00Z"
+  },
+  "rooms": {
+    "ROOM_1": {
+      "room_id": "ROOM_1",
+      "room_name": "Room 1 (IoT Lab - West)",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 24.0,
+      "humidity": 50.0,
+      "smoke_ppm": 65.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "ROOM_2": {
+      "room_id": "ROOM_2",
+      "room_name": "Room 2 (Auditorium - Central)",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 23.5,
+      "humidity": 48.0,
+      "smoke_ppm": 60.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "ROOM_3": {
+      "room_id": "ROOM_3",
+      "room_name": "Room 3 (Admin Office - East)",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 24.5,
+      "humidity": 52.0,
+      "smoke_ppm": 70.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "CORRIDOR_WEST": {
+      "room_id": "CORRIDOR_WEST",
+      "room_name": "Corridor West",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 23.0,
+      "humidity": 49.0,
+      "smoke_ppm": 50.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "CORRIDOR_CENTRAL": {
+      "room_id": "CORRIDOR_CENTRAL",
+      "room_name": "Corridor Central",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 23.2,
+      "humidity": 50.0,
+      "smoke_ppm": 55.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "CORRIDOR_EAST": {
+      "room_id": "CORRIDOR_EAST",
+      "room_name": "Corridor East",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 23.1,
+      "humidity": 51.0,
+      "smoke_ppm": 52.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "MAIN_EXIT": {
+      "room_id": "MAIN_EXIT",
+      "room_name": "Main Building Exit",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 22.5,
+      "humidity": 50.0,
+      "smoke_ppm": 45.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    },
+    "EMERGENCY_EXIT": {
+      "room_id": "EMERGENCY_EXIT",
+      "room_name": "Emergency Exit Stairwell",
+      "hazard_level": "NORMAL",
+      "hazard_types": ["NONE"],
+      "temperature": 22.0,
+      "humidity": 50.0,
+      "smoke_ppm": 40.0,
+      "flame_detected": false,
+      "is_passable": true,
+      "last_updated": 1731670800
+    }
+  },
+  "active_alerts": {},
+  "alert_history": {
+    "ALERT_SAMPLE_001": {
+      "alert_id": "ALERT_SAMPLE_001",
+      "room_id": "ROOM_1",
+      "hazard_level": "WARNING",
+      "hazard_type": "SMOKE",
+      "message": "Routine calibration drill record. Smoke detector tested.",
+      "timestamp": 1731670000,
+      "resolved": true,
+      "recommended_action": "System drill concluded successfully."
+    }
+  },
+  "evacuation_routes": {
+    "ROOM_1": {
+      "origin": "ROOM_1",
+      "destination": "EMERGENCY_EXIT",
+      "status": "SAFE_ROUTE_FOUND",
+      "path": ["ROOM_1", "CORRIDOR_WEST", "EMERGENCY_EXIT"],
+      "path_distance": 11.0,
+      "hazard_nodes_blocked": []
+    },
+    "ROOM_2": {
+      "origin": "ROOM_2",
+      "destination": "MAIN_EXIT",
+      "status": "SAFE_ROUTE_FOUND",
+      "path": ["ROOM_2", "CORRIDOR_CENTRAL", "CORRIDOR_EAST", "MAIN_EXIT"],
+      "path_distance": 20.0,
+      "hazard_nodes_blocked": []
+    },
+    "ROOM_3": {
+      "origin": "ROOM_3",
+      "destination": "MAIN_EXIT",
+      "status": "SAFE_ROUTE_FOUND",
+      "path": ["ROOM_3", "CORRIDOR_EAST", "MAIN_EXIT"],
+      "path_distance": 11.0,
+      "hazard_nodes_blocked": []
+    }
+  },
+  "esp32_device": {
+    "device_id": "ESP32_NODE_01",
+    "ip_address": "192.168.1.150",
+    "is_online": true,
+    "last_seen": 1731670800,
+    "firmware_version": "1.0.0",
+    "wifi_rssi": -65
+  },
+  "users": {
+    "USER_ADMIN_01": {
+      "uid": "USER_ADMIN_01",
+      "email": "admin@rescuelens.org",
+      "displayName": "Safety Chief Officer",
+      "role": "admin",
+      "createdAt": 1731670000
+    },
+    "USER_OCCUPANT_01": {
+      "uid": "USER_OCCUPANT_01",
+      "email": "student@college.edu",
+      "displayName": "Building Occupant",
+      "role": "user",
+      "createdAt": 1731670000
+    }
+  }
+}

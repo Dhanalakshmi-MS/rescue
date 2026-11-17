@@ -1,0 +1,51 @@
+{
+  "rules": {
+    ".read": "auth != null || true",
+    ".write": "auth != null",
+    "building_status": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.admin === true || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+      ".validate": "newData.hasChildren(['overall_status', 'safe_rooms', 'critical_rooms'])"
+    },
+    "rooms": {
+      ".read": true,
+      ".write": "auth != null",
+      "$room_id": {
+        "temperature": {
+          ".validate": "newData.isNumber() && newData.val() >= -40 && newData.val() <= 150"
+        },
+        "humidity": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        "smoke_ppm": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "flame_detected": {
+          ".validate": "newData.isBoolean()"
+        }
+      }
+    },
+    "active_alerts": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "alert_history": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "evacuation_routes": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "esp32_device": {
+      ".read": true,
+      ".write": true
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+      }
+    }
+  }
+}
